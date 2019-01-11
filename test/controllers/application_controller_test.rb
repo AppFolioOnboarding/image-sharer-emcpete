@@ -1,8 +1,8 @@
 require "./test/test_helper"
 
 
-describe ApplicationController do
+#describe ApplicationController do
   # it "must be a real test" do
   #   flunk "Need real tests"
   # end
-end
+#end
