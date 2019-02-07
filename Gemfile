@@ -53,3 +53,5 @@ gem 'rspec-rails'
 gem 'minitest-rails'
 
 gem 'responders'
+
+gem 'acts-as-taggable-on', '~> 6.0'

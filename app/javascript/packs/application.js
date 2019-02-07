@@ -1,96 +1,34 @@
 import React, {Component} from 'react'
 import ReactDOM from 'react-dom'
 import PropTypes from 'prop-types'
+import SuccesAlert from '../imageshare/success-alert'
+import FormModal from '../imageshare/form-modal'
+import ImageCard from '../imageshare/image-card'
+import FilterLabel from '../imageshare/filter-label'
+import { Button } from 'reactstrap';
 
-class URLForm extends Component {
+class ImageSharer extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      url: '',
-      urlValid: true
+      isLoaded: '',
+      images: [],
+      activeImage: '',
+      addImageSuccess: false,
+      modal: false,
+      tags: [],
+      filter: ''
     };
 
-    this.handleChange = this.handleChange.bind(this);
-    this.handleSubmit = this.handleSubmit.bind(this);
-  }
-
-  handleChange(event) {
-    this.setState({url: event.target.value});
-  }
-
-  handleSubmit(event) {
-    event.preventDefault();
-    if(this.validateField("url", this.state.url)) {
-      this.setState({urlValid: true});
-    } else {
-      this.setState({urlValid: false});
-      return false;
-    }
-    this.props.onURLForm(this.state.url);
-
-    fetch('/api/v1/images.json', {
-        method: 'POST',
-        body: JSON.stringify({ image: {url: this.state.url }}),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accepts': 'application/json'
-        }
-    }).then(
-      (result) => {
-        if(!result.ok) {
-          this.setState({
-            urlValid: false
-          });
-          return false;
-        }
-        this.setState({url: ''});
-      }
-    )
-  }
-
-  validateField(fieldName, value) {
-    var isValid = false;
-    switch(fieldName) {
-      case 'url':
-        isValid = value.match(/^(ftp|http|https):\/\/[^ "]+$/i);
-        break;
-      default: break;
-    }
-    return isValid;
-  }
-
-  getErrorClass(fieldIsValid) {
-    return fieldIsValid ? '' : 'is-invalid';
-  }
-
-  render() {
-    return (
-      <div className="m-5">
-        <form onSubmit={this.handleSubmit}>
-          <div className="form-group">
-          <label>Image URL:</label>
-          <input type="text" className={'form-control ' + this.getErrorClass(this.state.urlValid)} aria-describedby="urlHelp" placeholder="Enter URL" value={this.state.url} onChange={this.handleChange} />
-          <small id="urlHelp" className="form-text text-muted ">Enter an image URL.</small>
-          <div class="invalid-feedback">That URL is invalid.</div>
-          <input type="submit" className="mt-3" value="Submit" />
-          </div>
-        </form>
-      </div>
-    )
-  }
-}
-
-class DisplayImages extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      isLoaded: false,
-      images: []
-    };
+    this.addNewImage = this.addNewImage.bind(this);
   }
 
   componentDidMount() {
-    fetch('/api/v1/images.json')
+    this.getImages();
+  }
+
+  getImages() {
+    fetch('/api/v1/images.json?tag=' + this.state.filter)
       .then(res => res.json())
       .then(
         (result) => {
@@ -108,49 +46,97 @@ class DisplayImages extends Component {
       )
   }
 
+  handleAddImage = (image) => {
+    var images = this.state.images;
+    images.unshift(image);
+    this.setState({
+      images: images,
+      modal: false,
+      addImageSuccess: true
+    });
+  }
+
+  handleEditImage = (image) => {
+    var newImages = this.state.images.map((item) => {
+      if(item.id == image.id) {
+        item = image;
+      }
+      return item;
+    });
+    this.setState({
+      images: newImages, 
+      modal: false
+    });
+  }
+
+  handleDeleteImage = (id) => {
+    var newImages = this.state.images.filter((item) => {
+      return item.id != id;
+    });
+    this.setState({
+      images: newImages,
+      modal: false
+    });
+  }
+
+  openEditImageTags = (image) => {
+    this.setState({
+      activeImage: image,
+      modal: true
+    });
+  }
+
+  addNewImage = (image) => {
+    this.setState({
+      activeImage: {id:'', url: '', tag_list: []},
+      modal: true
+    });
+  }
+
+  filterDisplay() {
+    return this.state.filter ? this.state.filter : 'none';
+  }
+
+  clearFilter = () => {
+    this.setState({
+      filter: ''
+    }, this.getImages);
+  }
+
+  setFilter = (filter) => {
+    this.setState({
+      filter: filter
+    }, this.getImages);
+  }
+
   render() {
-    const { error, isLoaded, images } = this.state;
+    const { error, isLoaded } = this.state;
     if (error) {
       return <div className="m-5">Error: {error.message}</div>;
     } else if (!isLoaded) {
       return <div className="m-5">Loading...</div>;
     } else {
+
       return (
         <div>
-          {images.map(item => (
-            <div className="m-5" key={item.id} >
-              <img src={item.url} />
-            </div>
-          ))}
+          <SuccesAlert show={this.state.addImageSuccess}/>
+          <Button color="primary" onClick={this.addNewImage}>Add New Image URL</Button>
+          <FormModal onAddImage={this.handleAddImage} onEditImage={this.handleEditImage} image={this.state.activeImage} show={this.state.modal}/>
+          <FilterLabel filter={this.filterDisplay()} onClearFilter={this.clearFilter}/>
+          <div>
+            {this.state.images.map(item => (
+                <div className="my-4" key={item.id} >
+                <ImageCard onSetFilter={this.setFilter} onImageCardEditModal={this.openEditImageTags} onImageCardDelete={this.handleDeleteImage} item={item} />
+                </div>
+            ))}
+          </div>
         </div>
-      );
+      )
     }
-  }
-}
-
-class ImageSharer extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      url: ''
-    };
-  }
-
-  handleURL = (urlValue) => {
-    this.setState({url: urlValue});
-  }
-
-  render() {
-    return (
-      <div>
-        <URLForm onURLForm={this.handleURL}/>
-        <DisplayImages url={this.state.url}/>
-      </div>
-    )
   }
 }
 
 ReactDOM.render(
 <ImageSharer />,
-  document.getElementById('test')
+  document.getElementById('app')
 )
